@@ -1,0 +1,17 @@
+CC=gcc
+CFLAGS=-c -g -Wall 
+LDFLAGS=
+SOURCES=usbserial.c
+OBJECTS=$(SOURCES:.c=.o)
+EXECUTABLE=usbserial
+
+all: $(SOURCES) $(EXECUTABLE)
+	
+$(EXECUTABLE): $(OBJECTS) 
+	$(CC) $(LDFLAGS) $(OBJECTS) -o $@
+
+.cpp.o:
+	$(CC) $(CFLAGS) $< -o $@
+	
+clean:
+	rm -f $(OBJECTS) $(EXECUTABLE)
