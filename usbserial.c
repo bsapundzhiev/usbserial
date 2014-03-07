@@ -89,7 +89,7 @@ int main(int argc, char **argv)
             break;
         default: /* '?' */
             fprintf(stderr, "Simple USB to serial converter monitor\n\n");
-            fprintf(stderr, "Usage: %s [-n] name [-b baud] rate [-t sec] timeout [-w string] write command [-c num] count messages\n\n", argv[0]);
+            fprintf(stderr, "Usage: %s [-n name] device [-b baud] rate [-t sec] timeout [-w string] write command [-c num] count messages\n\n", argv[0]);
             exit(EXIT_FAILURE);
         }
     }
