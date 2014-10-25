@@ -26,7 +26,8 @@
 #include <errno.h>
 #include <unistd.h>
 
-#define MAX_COMMAND_LENGTH 256
+#define MAX_BUF_LENGTH 	256
+#define DEFAULT_USB_DEV	"/dev/ttyUSB0"
 
 struct serial_opt {
     char *name;
@@ -34,6 +35,11 @@ struct serial_opt {
     tcflag_t baud;
     struct termios options;
     int timeout;
+};
+
+struct serial_buf {
+   int len;
+   char buf[MAX_BUF_LENGTH];
 };
 
 static void serial_port_close(struct serial_opt *serial);
@@ -49,13 +55,12 @@ static struct serial_opt *pserial;
 
 int main(int argc, char **argv)
 {
-    int chars_read, messages_read=0;
-    char buffer[MAX_COMMAND_LENGTH] = {'\0'};
-
+    int messages_read=0;
     int opt, baud, write=0, count=0;
+    struct serial_buf sb = { 0, {0}};
 
     struct serial_opt serial = {
-        .name = "/dev/ttyUSB0",
+        .name = DEFAULT_USB_DEV,
         .handler = -1,
         .baud = B9600,
         .timeout = -1,
@@ -74,10 +79,10 @@ int main(int argc, char **argv)
             break;
         case 'w':
             write =1;
-            if (strlen(argv[optind]) < MAX_COMMAND_LENGTH ) {
-                strcpy(buffer, argv[optind]);
+            if (strlen(argv[optind]) < MAX_BUF_LENGTH) {
+                strcpy(sb.buf, argv[optind]);
             } else  {
-                fprintf(stderr,"command must be less than %d chars.", MAX_COMMAND_LENGTH );
+                fprintf(stderr,"command must be less than %d chars.", MAX_BUF_LENGTH);
                 exit(EXIT_FAILURE);
             }
             break;
@@ -95,15 +100,15 @@ int main(int argc, char **argv)
     }
 
     if (serial_port_open(&serial) == -1) {
-        printf("Unable to open %s\n", serial.name);
+        printf("Unable to open %s : %s\n", serial.name , strerror(errno));
         exit(EXIT_FAILURE);
     }
 
     fprintf(stderr, "Serial open: %s\n", serial.name);
 
     if (write) {
-        printf("Write %s...", buffer);
-        if (serial_port_write(serial.handler, buffer)) {
+        printf("Write %s...", sb.buf);
+        if (serial_port_write(serial.handler, sb.buf)) {
             printf("OK\n");
         } else {
             printf("Failed\n");
@@ -118,12 +123,12 @@ int main(int argc, char **argv)
         signal (SIGINT, (void*)sigint_handler);
     }
 
-    while (chars_read != -1) {
-        chars_read = serial_port_readline(&serial, buffer, sizeof(buffer));
+    while (sb.len != -1) {
+        sb.len = serial_port_readline(&serial, sb.buf, sizeof(sb.buf));
 
-        if (chars_read > 0) {
+        if (sb.len > 0) {
 
-            printf("%s\n", buffer);
+            printf("%s\n", sb.buf);
             if (++messages_read == count) {
                 serial_port_close(&serial);
                 break;
@@ -168,11 +173,8 @@ int serial_port_read(int fd, char *read_buffer, size_t max_chars_to_read)
 
 int serial_port_write(int fd, char *write_buffer)
 {
-    int bytes_written;
-    size_t len = 0;
-
-    len = strlen(write_buffer);
-    bytes_written = write(fd, write_buffer, len);
+    size_t len = strlen(write_buffer);
+    size_t bytes_written = write(fd, write_buffer, len);
 
     return (bytes_written == len);
 }
@@ -200,7 +202,7 @@ int serial_port_readline(struct serial_opt *serial, char *buf, int len)
             return -1;
         }
 
-        switch ( read(serial->handler, ptr, 1)) {
+        switch (serial_port_read(serial->handler, ptr, 1)) {
         case 1:
             if (*ptr == '\r')
                 continue;
@@ -226,15 +228,12 @@ int serial_port_readline(struct serial_opt *serial, char *buf, int len)
 int serial_wait_fd(int fd, short stimeout)
 {
     fd_set rfds;
-    struct timeval tv;
+    struct timeval tv = {.tv_sec= stimeout, .tv_usec= 0};
 
     FD_ZERO(&rfds);
     FD_SET(fd, &rfds);
-
-    tv.tv_sec = stimeout;
-    tv.tv_usec = 0;
     /* > 0 if descriptor is readable, 0 timeo, -1 err*/
-    return  select(fd + 1, &rfds, NULL, NULL, stimeout == -1 ? NULL :  &tv);
+    return  select(fd + 1, &rfds, NULL, NULL, stimeout == -1 ? NULL : &tv);
 }
 
 static tcflag_t parse_baudrate(int requested)
