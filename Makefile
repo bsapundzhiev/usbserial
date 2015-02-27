@@ -1,7 +1,7 @@
 CC=gcc
 CFLAGS=-c -g -Wall 
 LDFLAGS=
-SOURCES=usbserial.c
+SOURCES=usbserial.c usbserial_linux.c
 OBJECTS=$(SOURCES:.c=.o)
 EXECUTABLE=usbserial
 

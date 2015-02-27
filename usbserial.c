@@ -25,33 +25,28 @@
 #include <termios.h>
 #include <errno.h>
 #include <unistd.h>
+#include "usbserial.h"
 
 #define MAX_BUF_LENGTH 	256
 #define DEFAULT_USB_DEV	"/dev/ttyUSB0"
 
-struct serial_opt {
-    char *name;
-    int handler;
-    tcflag_t baud;
-    struct termios options;
-    int timeout;
-};
+
 
 struct serial_buf {
    int len;
    char buf[MAX_BUF_LENGTH];
 };
 
-static void serial_port_close(struct serial_opt *serial);
-static int serial_port_open(struct serial_opt *serial);
+//TODO:
 static int serial_port_readline(struct serial_opt *serial, char *buf, int len);
-static int serial_port_read(int fd, char *read_buffer, size_t max_chars_to_read);
-static int serial_port_write(int fd, char *write_buffer);
+
 static void sigint_handler(int sig);
 static tcflag_t parse_baudrate(int requested);
 static int serial_wait_fd(int fd, short stimeout);
 
 static struct serial_opt *pserial;
+
+usbserial_ops *pusbserial_ops;
 
 int main(int argc, char **argv)
 {
@@ -99,7 +94,10 @@ int main(int argc, char **argv)
         }
     }
 
-    if (serial_port_open(&serial) == -1) {
+    //init 	
+    pusbserial_ops = linux_initialize(pserial);
+
+    if (pusbserial_ops->serial_port_open(&serial) == -1) {
         printf("Unable to open %s : %s\n", serial.name , strerror(errno));
         exit(EXIT_FAILURE);
     }
@@ -108,13 +106,13 @@ int main(int argc, char **argv)
 
     if (write) {
         printf("Write %s...", sb.buf);
-        if (serial_port_write(serial.handler, sb.buf)) {
+        if (pusbserial_ops->serial_port_write(serial.handler, sb.buf)) {
             printf("OK\n");
         } else {
             printf("Failed\n");
         }
 
-        serial_port_close(&serial);
+        pusbserial_ops->serial_port_close(&serial);
         return 0;
     }
 
@@ -130,7 +128,7 @@ int main(int argc, char **argv)
 
             printf("%s\n", sb.buf);
             if (++messages_read == count) {
-                serial_port_close(&serial);
+                pusbserial_ops->serial_port_close(&serial);
                 break;
             }
         }
@@ -139,49 +137,10 @@ int main(int argc, char **argv)
     return 0;
 }
 
-void serial_port_close(struct serial_opt *serial)
-{
-    tcsetattr(serial->handler,TCSANOW,&(serial)->options);
-    close(serial->handler);
-}
-
-int serial_port_open(struct serial_opt *serial)
-{
-    struct termios options;
-
-    serial->handler = open(serial->name,  O_RDWR | O_NOCTTY | O_NONBLOCK );
-
-    if (serial->handler != -1) {
-        tcgetattr(serial->handler, &(serial)->options);
-        tcgetattr(serial->handler, &options);
-        cfsetispeed(&options, serial->baud);
-        cfsetospeed(&options, serial->baud);
-        options.c_cflag |= (CLOCAL | CREAD);
-        options.c_lflag |= ICANON;
-        tcsetattr(serial->handler, TCSANOW, &options);
-    }
-
-    return (serial->handler);
-}
-
-int serial_port_read(int fd, char *read_buffer, size_t max_chars_to_read)
-{
-    int chars_read = read(fd, read_buffer, max_chars_to_read);
-
-    return chars_read;
-}
-
-int serial_port_write(int fd, char *write_buffer)
-{
-    size_t len = strlen(write_buffer);
-    size_t bytes_written = write(fd, write_buffer, len);
-
-    return (bytes_written == len);
-}
 
 void  sigint_handler(int sig)
 {
-    serial_port_close(pserial);
+    pusbserial_ops->serial_port_close(pserial);
     exit (sig);
 }
 
@@ -202,7 +161,7 @@ int serial_port_readline(struct serial_opt *serial, char *buf, int len)
             return -1;
         }
 
-        switch (serial_port_read(serial->handler, ptr, 1)) {
+        switch (pusbserial_ops->serial_port_read(serial->handler, ptr, 1)) {
         case 1:
             if (*ptr == '\r')
                 continue;
