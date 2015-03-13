@@ -22,7 +22,7 @@ usbserial_ops linux_opts = {
 	.serial_port_write = linux_serial_port_write,
 };
 
-usbserial_ops * linux_initialize(struct serial_opt * options)
+usbserial_ops * serial_initialize(struct serial_opt * options)
 {
     return &linux_opts;
 }

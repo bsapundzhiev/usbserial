@@ -1,2 +1,4 @@
 /usbserial
 *.o
+*.suo
+/Debug/

@@ -22,14 +22,18 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <stdlib.h>
-#include <termios.h>
 #include <errno.h>
+
+#ifndef _WIN32
+#include <termios.h>
 #include <unistd.h>
+#else 
+#include "usbserial_win32.h"
+#endif
+
 #include "usbserial.h"
 
 #define MAX_BUF_LENGTH 	256
-#define DEFAULT_USB_DEV	"/dev/ttyUSB0"
-
 
 
 struct serial_buf {
@@ -54,12 +58,7 @@ int main(int argc, char **argv)
     int opt, baud, write=0, count=0;
     struct serial_buf sb = { 0, {0}};
 
-    struct serial_opt serial = {
-        .name = DEFAULT_USB_DEV,
-        .handler = -1,
-        .baud = B9600,
-        .timeout = -1,
-    };
+    struct serial_opt serial = { DEFAULT_USB_DEV,  -1,   B9600, -1, };
 
     pserial = &serial;
 
@@ -95,7 +94,7 @@ int main(int argc, char **argv)
     }
 
     //init 	
-    pusbserial_ops = linux_initialize(pserial);
+    pusbserial_ops = serial_initialize(pserial);
 
     if (pusbserial_ops->serial_port_open(&serial) == -1) {
         printf("Unable to open %s : %s\n", serial.name , strerror(errno));
@@ -136,7 +135,6 @@ int main(int argc, char **argv)
 
     return 0;
 }
-
 
 void  sigint_handler(int sig)
 {
@@ -187,7 +185,7 @@ int serial_port_readline(struct serial_opt *serial, char *buf, int len)
 int serial_wait_fd(int fd, short stimeout)
 {
     fd_set rfds;
-    struct timeval tv = {.tv_sec= stimeout, .tv_usec= 0};
+    struct timeval tv = {stimeout, 0};
 
     FD_ZERO(&rfds);
     FD_SET(fd, &rfds);
