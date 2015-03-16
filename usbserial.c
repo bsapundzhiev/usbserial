@@ -41,9 +41,8 @@ struct serial_buf {
    char buf[MAX_BUF_LENGTH];
 };
 
-//TODO:
-static int serial_port_readline(struct serial_opt *serial, char *buf, int len);
-
+static int serial_port_readline(int fd, int timeo, char *buf, int len);
+static int serial_get_input(char *buf, int len);
 static void sigint_handler(int sig);
 static tcflag_t parse_baudrate(int requested);
 static int serial_wait_fd(int fd, short stimeout);
@@ -55,7 +54,7 @@ usbserial_ops *pusbserial_ops;
 int main(int argc, char **argv)
 {
     int messages_read=0;
-    int opt, baud, write=0, count=0;
+    int opt, write=0, count=0;
     struct serial_buf sb = { 0, {0}};
 
     struct serial_opt serial = { DEFAULT_USB_DEV,  -1,   B9600, -1, };
@@ -67,10 +66,10 @@ int main(int argc, char **argv)
         case 'n':
             serial.name = argv[optind];
             break;
-        case 'b':
-            baud = atoi(optarg);
-            serial.baud = parse_baudrate(baud);
-            break;
+        case 'b':{
+			int baud = atoi(optarg);
+			serial.baud = parse_baudrate(baud);
+			} break;
         case 'w':
             write =1;
             if (strlen(argv[optind]) < MAX_BUF_LENGTH) {
@@ -121,7 +120,7 @@ int main(int argc, char **argv)
     }
 
     while (sb.len != -1) {
-        sb.len = serial_port_readline(&serial, sb.buf, sizeof(sb.buf));
+        sb.len = serial_port_readline(serial.handler,serial.timeout, sb.buf, sizeof(sb.buf));
 
         if (sb.len > 0) {
 
@@ -131,9 +130,19 @@ int main(int argc, char **argv)
                 break;
             }
         }
+
+		//serial_get_input(sb.buf, sizeof(sb.buf));
+		//pusbserial_ops->serial_port_write(serial.handler, sb.buf);
+
     }
 
     return 0;
+}
+
+static int serial_get_input(char *buf, int len) 
+{
+	printf(">> ");
+	return serial_port_readline(_fileno(stdin), 0, buf, len );
 }
 
 void  sigint_handler(int sig)
@@ -142,7 +151,7 @@ void  sigint_handler(int sig)
     exit (sig);
 }
 
-int serial_port_readline(struct serial_opt *serial, char *buf, int len)
+static int serial_port_readline(int fd, int timeo, char *buf, int len)
 {
     int retval;
     char *ptr = buf;
@@ -150,16 +159,16 @@ int serial_port_readline(struct serial_opt *serial, char *buf, int len)
 
     while (ptr < ptr_end) {
 
-        retval = serial_wait_fd(serial->handler, serial->timeout) ;
-        if (retval == -1) {
-            perror("select()");
-            return -1;
-        } else if (retval == 0) {
-            fprintf(stderr, "%s No data within %d seconds.\n", __func__, serial->timeout);
-            return -1;
-        }
-
-        switch (pusbserial_ops->serial_port_read(serial->handler, ptr, 1)) {
+		retval = serial_wait_fd(fd, timeo);
+		if (retval == -1 && errno != 0) {
+			perror("select()");
+			return -1;
+		} else if (retval == 0) {
+			fprintf(stderr, "%s No data within %d seconds.\n", __func__, timeo);
+			return -1;
+		}
+		
+        switch (pusbserial_ops->serial_port_read(fd, ptr, 1)) {
         case 1:
             if (*ptr == '\r')
                 continue;

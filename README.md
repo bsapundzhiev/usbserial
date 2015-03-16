@@ -1,8 +1,4 @@
-usbserial
-=========
+usbserial - Simple serial terminal emulator for linux and windows 
+---------
 
-Arduino communications on a USB to serial converter command line tool.
-
-
-TODO:WIN32 port:
-_open_osfhandle http://msdn.microsoft.com/en-us/library/bdts1c9x.aspx
+Command line terminal used for communication with my dev boards.

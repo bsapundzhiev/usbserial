@@ -1,8 +1,6 @@
 #ifndef _USBSERIAL_WIN32
 #define _USBSERIAL_WIN32
 
-
-//getopt
 extern int		optind;
 extern char    *optarg;
 extern int getopt(int nargc, char * const nargv[], const char *ostr);
