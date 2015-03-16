@@ -25,8 +25,7 @@
 #include <errno.h>
 
 #ifndef _WIN32
-#include <termios.h>
-#include <unistd.h>
+#include "usbserial_linux.h"
 #else 
 #include "usbserial_win32.h"
 #endif
@@ -46,6 +45,7 @@ static int serial_get_input(char *buf, int len);
 static void sigint_handler(int sig);
 static tcflag_t parse_baudrate(int requested);
 static int serial_wait_fd(int fd, short stimeout);
+static void serial_output(void *p);
 
 static struct serial_opt *pserial;
 
@@ -53,11 +53,20 @@ usbserial_ops *pusbserial_ops;
 
 int main(int argc, char **argv)
 {
-    int messages_read=0;
-    int opt, write=0, count=0;
+    int opt, write=0;
     struct serial_buf sb = { 0, {0}};
 
-    struct serial_opt serial = { DEFAULT_USB_DEV,  -1,   B9600, -1, };
+    struct serial_opt serial = 
+#ifdef _WIN32
+	{ DEFAULT_USB_DEV, -1, B9600, -1,0};
+#else
+	{ .name = DEFAULT_USB_DEV,
+	  .handler = -1,
+	  .baud = B9600,
+	  .timeout = -1,	
+	  .max_msgs =0
+	};
+#endif
 
     pserial = &serial;
 
@@ -67,9 +76,9 @@ int main(int argc, char **argv)
             serial.name = argv[optind];
             break;
         case 'b':{
-			int baud = atoi(optarg);
-			serial.baud = parse_baudrate(baud);
-			} break;
+		int baud = atoi(optarg);
+		serial.baud = parse_baudrate(baud);
+		} break;
         case 'w':
             write =1;
             if (strlen(argv[optind]) < MAX_BUF_LENGTH) {
@@ -83,7 +92,7 @@ int main(int argc, char **argv)
             serial.timeout = atoi(optarg);
             break;
         case 'c':
-            count = atoi(optarg);
+            serial.max_msgs = atoi(optarg);
             break;
         default: /* '?' */
             fprintf(stderr, "Simple USB to serial converter monitor\n\n");
@@ -92,7 +101,6 @@ int main(int argc, char **argv)
         }
     }
 
-    //init 	
     pusbserial_ops = serial_initialize(pserial);
 
     if (pusbserial_ops->serial_port_open(&serial) == -1) {
@@ -100,7 +108,9 @@ int main(int argc, char **argv)
         exit(EXIT_FAILURE);
     }
 
-    fprintf(stderr, "Serial open: %s\n", serial.name);
+    fprintf(stderr, "**************************************************\n");
+    fprintf(stderr, "* Serial open: %20s              *\n", serial.name);
+    fprintf(stderr, "**************************************************\n");
 
     if (write) {
         printf("Write %s...", sb.buf);
@@ -114,35 +124,47 @@ int main(int argc, char **argv)
         return 0;
     }
 
-    if (!count) {
+    if (!serial.max_msgs) {
         fprintf(stderr, "Press Ctrl+C to exit the program.\n");
         signal (SIGINT, (void*)sigint_handler);
     }
 
-    while (sb.len != -1) {
-        sb.len = serial_port_readline(serial.handler,serial.timeout, sb.buf, sizeof(sb.buf));
+    SPAWN_THREAD(serial_output, (void*) &serial);
+
+    while(1) {
+
+        serial_get_input(sb.buf, sizeof(sb.buf));
+	fprintf(stderr,">> %s\n", sb.buf);
+        pusbserial_ops->serial_port_write(serial.handler, sb.buf);
+    }
+	
+    return 0;
+}
+
+static void serial_output(void *p)
+{
+     int messages_read=0;
+     struct serial_opt *serial = (struct serial_opt *)p;
+     struct serial_buf sb = { 0, {0}};   
+	 
+     while (sb.len != -1) {
+        sb.len = serial_port_readline(serial->handler,serial->timeout, sb.buf, sizeof(sb.buf));
 
         if (sb.len > 0) {
 
-            printf("%s\n", sb.buf);
-            if (++messages_read == count) {
-                pusbserial_ops->serial_port_close(&serial);
-                break;
+            printf("<< %s\n", sb.buf);
+            if (++messages_read == serial->max_msgs) {
+                pusbserial_ops->serial_port_close(serial);
+                exit(-1);
             }
         }
-
-		//serial_get_input(sb.buf, sizeof(sb.buf));
-		//pusbserial_ops->serial_port_write(serial.handler, sb.buf);
-
-    }
-
-    return 0;
+     }
 }
 
 static int serial_get_input(char *buf, int len) 
 {
-	printf(">> ");
-	return serial_port_readline(_fileno(stdin), 0, buf, len );
+      //fprintf(stderr,">> ");
+      return serial_port_readline(_fileno(stdin), -1, buf, len );
 }
 
 void  sigint_handler(int sig)

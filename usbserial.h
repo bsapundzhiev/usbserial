@@ -3,24 +3,15 @@
 
 #include <sys/types.h>
 
-#ifdef _WIN32
-#include <Winsock2.h>
-	#define __func__ __FUNCTION__
-	#define DEFAULT_USB_DEV	"\\\\.\\COM3"
-	typedef int tcflag_t;
-#else
-	#define DEFAULT_USB_DEV	"/dev/ttyUSB0"
-	#define _fileno fileno
-#endif
-
 struct serial_opt {
     char *name;
     int handler;
     tcflag_t baud;
 #ifndef _WIN32
-	struct termios options;
+    struct termios options;
 #endif
     int timeout;
+    int max_msgs;
 };
 
 typedef struct s_usbserial_ops {

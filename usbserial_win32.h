@@ -1,11 +1,23 @@
 #ifndef _USBSERIAL_WIN32
 #define _USBSERIAL_WIN32
 
+#include <process.h>
+#include <Winsock2.h>
+
+#define __func__ __FUNCTION__
+#define DEFAULT_USB_DEV	"\\\\.\\COM3"
+typedef int tcflag_t;
+
+//threads
+#define END_TREAD()	_endthread()
+#define SPAWN_THREAD(threadfn, params)	\
+	{\
+		_beginthread( threadfn, 0, params );\
+	}\
+
 extern int		optind;
 extern char    *optarg;
 extern int getopt(int nargc, char * const nargv[], const char *ostr);
-
-
 
 #define		B50		50
 #define		B75		75
