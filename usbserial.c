@@ -92,7 +92,7 @@ int main(int argc, char **argv)
             serial.max_msgs = atoi(optarg);
             break;
         default: /* '?' */
-            fprintf(stderr, "Simple USB to serial converter monitor\n\n");
+            fprintf(stderr, "Simple USB2Serial terminal \n\n");
             fprintf(stderr, "Usage: %s [-n name] device [-b baud] rate [-t sec] timeout [-w string] write command [-c num] count messages\n\n", argv[0]);
             exit(EXIT_FAILURE);
         }
@@ -104,8 +104,8 @@ int main(int argc, char **argv)
 
 static int serial_term(struct serial_opt *serial, const char* outbuf) 
 {
-	struct serial_buf sb = { 0, {0}};
-	pusbserial_ops = serial_initialize(serial);
+    struct serial_buf sb = { 0, {0} };
+    pusbserial_ops = serial_initialize(serial);
 
     if (pusbserial_ops->serial_port_open(serial) == -1) {
         printf("Unable to open %s : %s\n", serial->name , strerror(errno));
@@ -129,7 +129,7 @@ static int serial_term(struct serial_opt *serial, const char* outbuf)
     }
 
     if (!serial->max_msgs) {
-        fprintf(stderr, "Press Ctrl+C to exit the program.\n");
+        fprintf(stderr, "Type quit, bye or ^C to exit.\n");
         signal (SIGINT, (void*)sigint_handler);
     }
 
@@ -138,10 +138,16 @@ static int serial_term(struct serial_opt *serial, const char* outbuf)
     while(1) {
 
         serial_get_input(sb.buf, sizeof(sb.buf));
-		fprintf(stderr,">> %s\n", sb.buf);
-        pusbserial_ops->serial_port_write(serial->handler, sb.buf);
+
+	if(!strcmp(sb.buf, "bye") || !strcmp(sb.buf, "quit")) {
+	    break;
+	} else {
+	    fprintf(stderr,">> %s\n", sb.buf);
+            pusbserial_ops->serial_port_write(serial->handler, sb.buf);
+    	}
     }
 	
+    pusbserial_ops->serial_port_close(serial);
     return 0;
 }
 
@@ -155,20 +161,22 @@ static void serial_output(void *p)
         sb.len = serial_port_readline(serial->handler,serial->timeout, sb.buf, sizeof(sb.buf));
 
         if (sb.len > 0) {
-
             printf("<< %s\n", sb.buf);
             if (++messages_read == serial->max_msgs) {
-                pusbserial_ops->serial_port_close(serial);
-                exit(EXIT_SUCCESS);
+            	break;    
             }
         }
      }
+
+    printf("serial_output end!\n");
+    pusbserial_ops->serial_port_close(serial);
+    exit(EXIT_SUCCESS);
 }
 
 static int serial_get_input(char *buf, int len) 
 {
-      //fprintf(stderr,">> ");
-      return serial_port_readline(_fileno(stdin), -1, buf, len );
+    //fprintf(stderr,">> ");
+    return serial_port_readline(_fileno(stdin), -1, buf, len );
 }
 
 void  sigint_handler(int sig)
@@ -185,14 +193,14 @@ static int serial_port_readline(int fd, int timeo, char *buf, int len)
 
     while (ptr < ptr_end) {
 
-		retval = serial_wait_fd(fd, timeo);
-		if (retval == -1 && errno != 0) {
-			perror("select()");
-			return -1;
-		} else if (retval == 0) {
-			fprintf(stderr, "%s No data within %d seconds.\n", __func__, timeo);
-			return -1;
-		}
+	retval = serial_wait_fd(fd, timeo);
+	if (retval == -1 && errno != 0) {
+	    perror("select()");
+	    return -1;
+	} else if (retval == 0) {
+	    fprintf(stderr, "%s No data within %d seconds.\n", __func__, timeo);
+	    return -1;
+	}
 		
         switch (pusbserial_ops->serial_port_read(fd, ptr, 1)) {
         case 1:

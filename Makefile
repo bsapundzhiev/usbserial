@@ -17,4 +17,4 @@ clean:
 	rm -f $(OBJECTS) $(EXECUTABLE)
 	
 install:
-	cp -p $(EXECUTABLE) /usr/local/bin
+	cp -p $(EXECUTABLE) ~/bin
