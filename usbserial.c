@@ -34,7 +34,6 @@
 
 #define MAX_BUF_LENGTH 	256
 
-
 struct serial_buf {
    int len;
    char buf[MAX_BUF_LENGTH];
@@ -46,16 +45,15 @@ static void sigint_handler(int sig);
 static tcflag_t parse_baudrate(int requested);
 static int serial_wait_fd(int fd, short stimeout);
 static void serial_output(void *p);
-
+static int serial_term(struct serial_opt *serial, const char* outbuf);
 static struct serial_opt *pserial;
 
 usbserial_ops *pusbserial_ops;
 
 int main(int argc, char **argv)
 {
-    int opt, write=0;
-    struct serial_buf sb = { 0, {0}};
-
+    int opt;
+	char *pbuf = NULL;
     struct serial_opt serial = 
 #ifdef _WIN32
 	{ DEFAULT_USB_DEV, -1, B9600, -1,0};
@@ -80,9 +78,8 @@ int main(int argc, char **argv)
 		serial.baud = parse_baudrate(baud);
 		} break;
         case 'w':
-            write =1;
             if (strlen(argv[optind]) < MAX_BUF_LENGTH) {
-                strcpy(sb.buf, argv[optind]);
+				pbuf =argv[optind];
             } else  {
                 fprintf(stderr,"command must be less than %d chars.", MAX_BUF_LENGTH);
                 exit(EXIT_FAILURE);
@@ -101,41 +98,48 @@ int main(int argc, char **argv)
         }
     }
 
-    pusbserial_ops = serial_initialize(pserial);
+	serial_term(&serial, pbuf);
+    return 0; 
+}
 
-    if (pusbserial_ops->serial_port_open(&serial) == -1) {
-        printf("Unable to open %s : %s\n", serial.name , strerror(errno));
+static int serial_term(struct serial_opt *serial, const char* outbuf) 
+{
+	struct serial_buf sb = { 0, {0}};
+	pusbserial_ops = serial_initialize(serial);
+
+    if (pusbserial_ops->serial_port_open(serial) == -1) {
+        printf("Unable to open %s : %s\n", serial->name , strerror(errno));
         exit(EXIT_FAILURE);
     }
 
     fprintf(stderr, "**************************************************\n");
-    fprintf(stderr, "* Serial open: %20s              *\n", serial.name);
+    fprintf(stderr, "* Serial open: %20s              *\n", serial->name);
     fprintf(stderr, "**************************************************\n");
 
-    if (write) {
+    if (outbuf) {
         printf("Write %s...", sb.buf);
-        if (pusbserial_ops->serial_port_write(serial.handler, sb.buf)) {
+        if (pusbserial_ops->serial_port_write(serial->handler, sb.buf)) {
             printf("OK\n");
         } else {
             printf("Failed\n");
         }
 
-        pusbserial_ops->serial_port_close(&serial);
+        pusbserial_ops->serial_port_close(serial);
         return 0;
     }
 
-    if (!serial.max_msgs) {
+    if (!serial->max_msgs) {
         fprintf(stderr, "Press Ctrl+C to exit the program.\n");
         signal (SIGINT, (void*)sigint_handler);
     }
 
-    SPAWN_THREAD(serial_output, (void*) &serial);
+    SPAWN_THREAD(serial_output, (void*) serial);
 
     while(1) {
 
         serial_get_input(sb.buf, sizeof(sb.buf));
-	fprintf(stderr,">> %s\n", sb.buf);
-        pusbserial_ops->serial_port_write(serial.handler, sb.buf);
+		fprintf(stderr,">> %s\n", sb.buf);
+        pusbserial_ops->serial_port_write(serial->handler, sb.buf);
     }
 	
     return 0;
@@ -155,7 +159,7 @@ static void serial_output(void *p)
             printf("<< %s\n", sb.buf);
             if (++messages_read == serial->max_msgs) {
                 pusbserial_ops->serial_port_close(serial);
-                exit(-1);
+                exit(EXIT_SUCCESS);
             }
         }
      }
