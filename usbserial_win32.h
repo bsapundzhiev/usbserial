@@ -5,7 +5,7 @@
 #include <Winsock2.h>
 
 #define __func__ __FUNCTION__
-#define DEFAULT_USB_DEV	"\\\\.\\COM3"
+#define DEFAULT_USB_DEV	"\\\\.\\COM4"
 typedef int tcflag_t;
 
 //threads

@@ -146,7 +146,7 @@ static int serial_term(struct serial_opt *serial, const char* outbuf)
             pusbserial_ops->serial_port_write(serial->handler, sb.buf);
     	}
     }
-	
+	printf("Bye!\n");
     pusbserial_ops->serial_port_close(serial);
     return 0;
 }
@@ -158,7 +158,7 @@ static void serial_output(void *p)
      struct serial_buf sb = { 0, {0}};   
 	 
      while (sb.len != -1) {
-        sb.len = serial_port_readline(serial->handler,serial->timeout, sb.buf, sizeof(sb.buf));
+        sb.len = serial_port_readline(serial->handler, serial->timeout, sb.buf, sizeof(sb.buf));
 
         if (sb.len > 0) {
             printf("<< %s\n", sb.buf);

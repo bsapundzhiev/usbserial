@@ -59,7 +59,7 @@ static int win32_serial_port_open(struct serial_opt *serial)
     );
 
 	if (hComm == INVALID_HANDLE_VALUE) {
-		printf("INVALID_HANDLE_VALUE\n");
+		printf("CreateFile() failed with error %d\n",  GetLastError());
 	}
 	 
 	if (GetCommState(hComm, &dcb))
@@ -68,14 +68,22 @@ static int win32_serial_port_open(struct serial_opt *serial)
 		dcb.ByteSize = 8; 
 		dcb.Parity = NOPARITY; 
 		dcb.StopBits = ONESTOPBIT; 
-		printf("set UP DCB\n");
+	} 
+	else {
+		printf("Failed to get the comm state - Error: %d\n", GetLastError());
+		CloseHandle(hComm);
 	}
-	else
-		printf("ERROR getting \n", GetLastError());
 
-	serial->handler = _open_osfhandle((intptr_t)hComm, O_TEXT );
+	if ( !SetCommState( hComm, &dcb ) ) {
+		printf("Failed to set the comm state - Error: %d", GetLastError()); 
+		CloseHandle(hComm);
+	}
 
-	CloseHandle(hComm);
+	serial->handler = _open_osfhandle((intptr_t)hComm, O_TEXT);
+	if(serial->handler == -1) {
+		printf("Error in _open_osfhandle\n");
+		CloseHandle(hComm);
+	}
 
 	return serial->handler;
 }
