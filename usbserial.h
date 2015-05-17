@@ -3,6 +3,8 @@
 
 #include <sys/types.h>
 
+#define  VERSION "0.1.0-beta"
+
 struct serial_opt {
     char *name;
     int handler;

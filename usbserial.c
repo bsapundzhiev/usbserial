@@ -92,7 +92,7 @@ int main(int argc, char **argv)
             serial.max_msgs = atoi(optarg);
             break;
         default: /* '?' */
-            fprintf(stderr, "Simple USB2Serial terminal \n\n");
+            fprintf(stderr, "USB2Serial terminal %s, %s\n\n", VERSION, __DATE__);
             fprintf(stderr, "Usage: %s [-n name] device [-b baud] rate [-t sec] timeout [-w string] write command [-c num] count messages\n\n", argv[0]);
             exit(EXIT_FAILURE);
         }
