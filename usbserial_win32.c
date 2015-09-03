@@ -25,14 +25,14 @@
 static void win32_serial_port_close(struct serial_opt *serial);
 static int win32_serial_port_open(struct serial_opt *serial);
 static int win32_serial_port_read(int fd, char *read_buffer, size_t max_chars_to_read);
-static int win32_serial_port_write(int fd, char *write_buffer);
+static int win32_serial_port_write(int fd, const char *write_buffer);
 
 usbserial_ops win32_opts = {
-	
-	 win32_serial_port_close,
-	 win32_serial_port_open,
-	 win32_serial_port_read,
-	 win32_serial_port_write,
+    
+     win32_serial_port_close,
+     win32_serial_port_open,
+     win32_serial_port_read,
+     win32_serial_port_write,
 };
 
 usbserial_ops * serial_initialize(struct serial_opt * options)
@@ -42,50 +42,50 @@ usbserial_ops * serial_initialize(struct serial_opt * options)
 
 static void win32_serial_port_close(struct serial_opt *serial)
 {
-	_close( serial->handler );
+    _close( serial->handler );
 }
 
 static int win32_serial_port_open(struct serial_opt *serial)
 {
-	static DCB dcb = {0};
-	HANDLE hComm = CreateFile(
-		serial->name,
-		GENERIC_WRITE | GENERIC_READ,
-		0,
-		NULL,
-		OPEN_EXISTING,
-		FILE_ATTRIBUTE_NORMAL,   
-		NULL
+    static DCB dcb = {0};
+    HANDLE hComm = CreateFile(
+        serial->name,
+        GENERIC_WRITE | GENERIC_READ,
+        0,
+        NULL,
+        OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL,   
+        NULL
     );
 
-	if (hComm == INVALID_HANDLE_VALUE) {
-		printf("CreateFile() failed with error %d\n",  GetLastError());
-	}
-	 
-	if (GetCommState(hComm, &dcb))
-	{
-		dcb.BaudRate = serial->baud;
-		dcb.ByteSize = 8; 
-		dcb.Parity = NOPARITY; 
-		dcb.StopBits = ONESTOPBIT; 
-	} 
-	else {
-		printf("Failed to get the comm state - Error: %d\n", GetLastError());
-		CloseHandle(hComm);
-	}
+    if (hComm == INVALID_HANDLE_VALUE) {
+        printf("CreateFile() failed with error %d\n",  GetLastError());
+    }
+     
+    if (GetCommState(hComm, &dcb))
+    {
+        dcb.BaudRate = serial->baud;
+        dcb.ByteSize = 8; 
+        dcb.Parity = NOPARITY; 
+        dcb.StopBits = ONESTOPBIT; 
+    } 
+    else {
+        printf("Failed to get the comm state - Error: %d\n", GetLastError());
+        CloseHandle(hComm);
+    }
 
-	if ( !SetCommState( hComm, &dcb ) ) {
-		printf("Failed to set the comm state - Error: %d", GetLastError()); 
-		CloseHandle(hComm);
-	}
+    if ( !SetCommState( hComm, &dcb ) ) {
+        printf("Failed to set the comm state - Error: %d", GetLastError()); 
+        CloseHandle(hComm);
+    }
 
-	serial->handler = _open_osfhandle((intptr_t)hComm, O_TEXT);
-	if(serial->handler == -1) {
-		printf("Error in _open_osfhandle\n");
-		CloseHandle(hComm);
-	}
+    serial->handler = _open_osfhandle((intptr_t)hComm, O_TEXT);
+    if(serial->handler == -1) {
+        printf("Error in _open_osfhandle\n");
+        CloseHandle(hComm);
+    }
 
-	return serial->handler;
+    return serial->handler;
 }
 
 static int win32_serial_port_read(int fd, char *read_buffer, size_t max_chars_to_read)
@@ -94,8 +94,8 @@ static int win32_serial_port_read(int fd, char *read_buffer, size_t max_chars_to
 
     return chars_read;
 }
-	
-static int win32_serial_port_write(int fd, char *write_buffer)
+    
+static int win32_serial_port_write(int fd, const char *write_buffer)
 {
     size_t len = strlen(write_buffer);
     size_t bytes_written = _write(fd, write_buffer, len);

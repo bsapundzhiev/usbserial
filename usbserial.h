@@ -14,14 +14,15 @@ struct serial_opt {
 #endif
     int timeout;
     int max_msgs;
+    int endl;
 };
 
 typedef struct s_usbserial_ops {
 
-	void (*serial_port_close)(struct serial_opt *serial);
-	int (*serial_port_open)(struct serial_opt *serial);
-	int (*serial_port_read)(int fd, char *read_buffer, size_t max_chars_to_read);
-	int (*serial_port_write)(int fd, char *write_buffer);
+    void (*serial_port_close)(struct serial_opt *serial);
+    int (*serial_port_open)(struct serial_opt *serial);
+    int (*serial_port_read)(int fd, char *read_buffer, size_t max_chars_to_read);
+    int (*serial_port_write)(int fd, const char *write_buffer);
 
 } usbserial_ops;
 
