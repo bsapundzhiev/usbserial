@@ -70,7 +70,7 @@ int main(int argc, char **argv)
 
     pserial = &serial;
 
-    while ((opt = getopt(argc, argv, "nwbr:t:c:")) != -1) {
+    while ((opt = getopt(argc, argv, "nwb:t:c:r")) != -1) {
         switch (opt) {
         case 'n':
             serial.name = argv[optind];
@@ -122,15 +122,14 @@ static int serial_term(struct serial_opt *serial, const char* outbuf)
     fprintf(stderr, "**************************************************\n");
 
     if (outbuf) {
-        if (serial_write_buf(serial, sb.buf)) {
+        if (serial_write_buf(serial, outbuf)) {
             serial->timeout = (serial->timeout == -1) ? 2 : serial->timeout;
             serial_output((void*) serial);
         } else {
             printf("Write to %s failed\n", serial->name);
+            pusbserial_ops->serial_port_close(serial);
+            return -1;
         }
-
-        pusbserial_ops->serial_port_close(serial);
-        return 0;
     }
 
     if (!serial->max_msgs) {
