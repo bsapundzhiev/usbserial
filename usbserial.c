@@ -144,6 +144,7 @@ static int serial_term(struct serial_opt *serial, const char* outbuf)
 	} else {
 	    fprintf(stderr,">> %s\n", sb.buf);
             pusbserial_ops->serial_port_write(serial->handler, sb.buf);
+            pusbserial_ops->serial_port_write(serial->handler, "\r\n");
     	}
     }
 	printf("Bye!\n");
