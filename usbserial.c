@@ -218,8 +218,10 @@ static int serial_port_readline(int fd, int timeo, char *buf, int len)
             *ptr = '\0';
             return ptr - buf;
         default:
-            printf("%s() failed: %s\n", __func__, strerror(errno));
-            return -1;
+            if(errno != EAGAIN || errno != EWOULDBLOCK) {
+                printf("%s() failed: %s\n", __func__, strerror(errno));
+                return -1;
+            }
         }
     }
 
