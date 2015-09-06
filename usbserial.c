@@ -45,7 +45,7 @@ static void sigint_handler(int sig);
 static tcflag_t parse_baudrate(int requested);
 static int serial_wait_fd(int fd, short stimeout);
 static void serial_output(void *p);
-static int serial_term(struct serial_opt *serial, const char* outbuf);
+static int serial_term_init(struct serial_opt *serial, const char* outbuf);
 static int serial_write_buf(struct serial_opt *serial, const char * buf);
 static struct serial_opt *pserial;
 
@@ -70,9 +70,9 @@ int main(int argc, char **argv)
 
     pserial = &serial;
 
-    while ((opt = getopt(argc, argv, "nwb:t:c:r")) != -1) {
+    while ((opt = getopt(argc, argv, "dwb:t:c:n")) != -1) {
         switch (opt) {
-        case 'n':
+        case 'd':
             serial.name = argv[optind];
             break;
         case 'b':{
@@ -93,21 +93,21 @@ int main(int argc, char **argv)
         case 'c':
             serial.max_msgs = atoi(optarg);
             break;
-        case 'r':
+        case 'n':
             serial.endl = 0;
             break;
         default: /* '?' */
             fprintf(stderr, "USB2Serial terminal %s, %s\n\n", VERSION, __DATE__);
-            fprintf(stderr, "Usage: %s [-n name] device [-b baud] rate [-t sec] timeout [-w string] write command [-c num] count messages [-r] don't add <CR>\n\n", argv[0]);
+            fprintf(stderr, "Usage: %s [-d name] device [-b baud] rate [-t sec] timeout [-w string] write command [-c num] count messages [-n] don't add <CR>\n\n", argv[0]);
             exit(EXIT_FAILURE);
         }
     }
 
-    serial_term(&serial, pbuf);
+    serial_term_init(&serial, pbuf);
     return 0; 
 }
 
-static int serial_term(struct serial_opt *serial, const char* outbuf) 
+static int serial_term_init(struct serial_opt *serial, const char* outbuf) 
 {
     struct serial_buf sb = { 0, {0} };
     pusbserial_ops = serial_initialize(serial);
@@ -140,7 +140,6 @@ static int serial_term(struct serial_opt *serial, const char* outbuf)
     SPAWN_THREAD(serial_output, (void*) serial);
 
     while(1) {
-
         serial_get_input(sb.buf, sizeof(sb.buf));
 
         if (!strcmp(sb.buf, "bye") || !strcmp(sb.buf, "quit")) {
@@ -149,7 +148,7 @@ static int serial_term(struct serial_opt *serial, const char* outbuf)
             serial_write_buf(serial, sb.buf);
         }
     }
-    printf("Bye!\n");
+    fprintf(stderr, "Bye!\n");
     pusbserial_ops->serial_port_close(serial);
     return 0;
 }
@@ -157,11 +156,12 @@ static int serial_term(struct serial_opt *serial, const char* outbuf)
 static int serial_write_buf(struct serial_opt *serial, const char * buf) 
 {
     int res = pusbserial_ops->serial_port_write(serial->handler, buf);
-    fprintf(stderr,">> %s\n", buf);
+    printf(">> %s\n", buf);
+    fflush(stdout);
+
     if (serial->endl) {
         res = pusbserial_ops->serial_port_write(serial->handler, "\r\n");
     }
-
     return res;
 }
 
@@ -176,21 +176,21 @@ static void serial_output(void *p)
 
         if (sb.len > 0) {
             printf("<< %s\n", sb.buf);
+            fflush(stdout);
             if (++messages_read == serial->max_msgs) {
                 break;    
             }
         }
      }
 
-    printf("serial_output end!\n");
+    fprintf(stderr, "serial_output end!\n");
     pusbserial_ops->serial_port_close(serial);
     exit(EXIT_SUCCESS);
 }
 
 static int serial_get_input(char *buf, int len) 
 {
-    //fprintf(stderr,">> ");
-    return serial_port_readline(_fileno(stdin), -1, buf, len );
+    return serial_port_readline(_fileno(stdin), -1, buf, len);
 }
 
 void  sigint_handler(int sig)
@@ -216,7 +216,7 @@ static int serial_port_readline(int fd, int timeo, char *buf, int len)
         return -1;
     }
         
-        switch (pusbserial_ops->serial_port_read(fd, ptr, 1)) {
+    switch (pusbserial_ops->serial_port_read(fd, ptr, 1)) {
         case 1:
             if (*ptr == '\r')
                 continue;
@@ -231,8 +231,8 @@ static int serial_port_readline(int fd, int timeo, char *buf, int len)
             *ptr = '\0';
             return ptr - buf;
         default:
-            if ( errno != EAGAIN ) {
-                printf("%s() failed: %s\n", __func__, strerror(errno));
+            if (errno != EAGAIN) {
+                fprintf(stderr, "%s() failed: %s\n", __func__, strerror(errno));
                 return -1;
             }
         }
