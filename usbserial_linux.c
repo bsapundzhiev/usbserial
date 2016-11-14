@@ -81,7 +81,7 @@ int linux_serial_port_open(struct serial_opt *serial)
         options.c_cflag |= (CLOCAL | CREAD);// ignore modem controls,
                                         // enable reading
         options.c_cflag &= ~(PARENB | PARODD);      // shut off parity
-        options.c_cflag |= parity;
+        options.c_cflag |= serial->baud;
         options.c_cflag &= ~CSTOPB;
         options.c_cflag &= ~CRTSCTS;
 

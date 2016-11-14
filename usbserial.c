@@ -57,12 +57,12 @@ int main(int argc, char **argv)
     char *pbuf = NULL;
     struct serial_opt serial =
 #ifdef _WIN32
-    { DEFAULT_USB_DEV, -1, B9600, -1, 0, 1};
+    { DEFAULT_USB_DEV, -1, B9600, 1, 0, 1};
 #else
     { .name = DEFAULT_USB_DEV,
       .handler = -1,
       .baud = B9600,
-      .timeout = -1,
+      .timeout = 1,
       .max_msgs = 0,
       .endl = 1,
     };
@@ -178,7 +178,7 @@ static void serial_output(void *p)
         sb.len = serial_port_readline(serial->handler, serial->timeout, sb.buf, sizeof(sb.buf));
 
         if (sb.len > 0) {
-            printf("<< %s\n", sb.buf);
+            fprintf(stdout, "<< %s\n", sb.buf);
             fflush(stdout);
             if (++messages_read == serial->max_msgs) {
                 break;
@@ -215,8 +215,10 @@ static int serial_port_readline(int fd, int timeo, char *buf, int len)
         perror("select()");
         return -1;
     } else if (retval == 0) {
-        fprintf(stderr, "%s No data within %d seconds.\n", __func__, timeo);
-        return -1;
+
+        //fprintf(stderr, "%s No data within %d seconds.\n", __func__, timeo);
+        *ptr = '\0';
+        return ptr - buf;
     }
 
     switch (pusbserial_ops->serial_port_read(fd, ptr, 1)) {
