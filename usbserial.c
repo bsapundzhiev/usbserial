@@ -31,7 +31,9 @@
 #endif
 
 #include "usbserial.h"
+#include "rbuff.h"
 
+#define DEFAULT_TIMEO   1
 #define MAX_BUF_LENGTH  256
 
 struct serial_buf {
@@ -39,7 +41,8 @@ struct serial_buf {
    char buf[MAX_BUF_LENGTH];
 };
 
-static int serial_port_readline(int fd, int timeo, char *buf, int len);
+t_rbuf rbuff;
+
 static int serial_get_input(char *buf, int len);
 static void sigint_handler(int sig);
 static tcflag_t parse_baudrate(int requested);
@@ -47,6 +50,8 @@ static int serial_wait_fd(int fd, short stimeout);
 static void serial_output(void *p);
 static int serial_term_init(struct serial_opt *serial, const char* outbuf);
 static int serial_write_buf(struct serial_opt *serial, const char * buf);
+static int serial_port_read_rbuff(struct serial_opt *serial);
+
 static struct serial_opt *pserial;
 
 usbserial_ops *pusbserial_ops;
@@ -57,12 +62,12 @@ int main(int argc, char **argv)
     char *pbuf = NULL;
     struct serial_opt serial =
 #ifdef _WIN32
-    { DEFAULT_USB_DEV, -1, B9600, -1, 0, 1};
+    { DEFAULT_USB_DEV, -1, B9600, DEFAULT_TIMEO, 0, 1};
 #else
     { .name = DEFAULT_USB_DEV,
       .handler = -1,
       .baud = B9600,
-      .timeout = -1,
+      .timeout = DEFAULT_TIMEO,
       .max_msgs = 0,
       .endl = 1,
     };
@@ -114,6 +119,8 @@ static int serial_term_init(struct serial_opt *serial, const char* outbuf)
 {
     struct serial_buf sb = { 0, {0} };
     pusbserial_ops = serial_initialize(serial);
+
+    buf_init(&rbuff);
 
     if (pusbserial_ops->serial_port_open(serial) == -1) {
         printf("Unable to open %s : %s\n", serial->name , strerror(errno));
@@ -168,22 +175,22 @@ static int serial_write_buf(struct serial_opt *serial, const char * buf)
     return res;
 }
 
+
 static void serial_output(void *p)
 {
      int messages_read=0;
      struct serial_opt *serial = (struct serial_opt *)p;
      struct serial_buf sb = { 0, {0}};
+     char ch;
+     int i;
 
-     while (sb.len != -1) {
-        sb.len = serial_port_readline(serial->handler, serial->timeout, sb.buf, sizeof(sb.buf));
+     while (serial_port_read_rbuff(serial) != -1) {
 
-        if (sb.len > 0) {
-            printf("<< %s\n", sb.buf);
-            fflush(stdout);
-            if (++messages_read == serial->max_msgs) {
-                break;
-            }
+        for(i =0; i < rbuff.len; i++) {
+            buf_get(&rbuff, &ch);
+            fprintf(stdout, "%c", ch);
         }
+        //fflush(stdout);
      }
 
     fprintf(stderr, "serial_output end!\n");
@@ -193,7 +200,7 @@ static void serial_output(void *p)
 
 static int serial_get_input(char *buf, int len)
 {
-    return serial_port_readline(_fileno(stdin), -1, buf, len);
+    return read(_fileno(stdin), buf, len);
 }
 
 void  sigint_handler(int sig)
@@ -202,37 +209,29 @@ void  sigint_handler(int sig)
     exit (sig);
 }
 
-static int serial_port_readline(int fd, int timeo, char *buf, int len)
+static int serial_port_read_rbuff(struct serial_opt *serial)
 {
-    int retval;
-    char *ptr = buf;
-    char *ptr_end = ptr + len - 1;
+    int retval = 0;
+    char chr;
 
-    while (ptr < ptr_end) {
+    while(!buf_is_full(&rbuff)) {
 
-    retval = serial_wait_fd(fd, timeo);
-    if (retval == -1 && errno != 0) {
-        perror("select()");
-        return -1;
-    } else if (retval == 0) {
-        fprintf(stderr, "%s No data within %d seconds.\n", __func__, timeo);
-        return -1;
-    }
+        retval = serial_wait_fd(serial->handler, serial->timeout);
+        if (retval == -1 && errno != 0) {
+            perror("select()");
+            return -1;
+        } else if (retval == 0) {
+            //fprintf(stderr, "%s No data within %d seconds.\n", __func__, timeo);
+            return -2;
+        }
 
-    switch (pusbserial_ops->serial_port_read(fd, ptr, 1)) {
+        switch (pusbserial_ops->serial_port_read(serial->handler, &chr, 1)) {
         case 1:
-            if (*ptr == '\r')
-                continue;
-            else if (*ptr == '\n') {
-                *ptr = '\0';
-                return ptr - buf;
-            } else {
-                ptr++;
-                continue;
-            }
+            buf_put(&rbuff, chr);
+            continue;
         case 0:
-            *ptr = '\0';
-            return ptr - buf;
+            //printf("read 0\n");
+            break;
         default:
             if (errno != EAGAIN) {
                 fprintf(stderr, "%s() failed: %s\n", __func__, strerror(errno));
@@ -241,7 +240,7 @@ static int serial_port_readline(int fd, int timeo, char *buf, int len)
         }
     }
 
-    return len;
+    return retval;
 }
 
 int serial_wait_fd(int fd, short stimeout)
