@@ -190,7 +190,7 @@ static void serial_output(void *p)
             buf_get(&rbuff, &ch);
             fprintf(stdout, "%c", ch);
         }
-        //fflush(stdout);
+        fflush(stdout);
      }
 
     fprintf(stderr, "serial_output end!\n");
