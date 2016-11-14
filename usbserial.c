@@ -26,7 +26,7 @@
 
 #ifndef _WIN32
 #include "usbserial_linux.h"
-#else 
+#else
 #include "usbserial_win32.h"
 #endif
 
@@ -55,14 +55,14 @@ int main(int argc, char **argv)
 {
     int opt;
     char *pbuf = NULL;
-    struct serial_opt serial = 
+    struct serial_opt serial =
 #ifdef _WIN32
     { DEFAULT_USB_DEV, -1, B9600, -1, 0, 1};
 #else
     { .name = DEFAULT_USB_DEV,
       .handler = -1,
       .baud = B9600,
-      .timeout = -1,    
+      .timeout = -1,
       .max_msgs = 0,
       .endl = 1,
     };
@@ -75,10 +75,13 @@ int main(int argc, char **argv)
         case 'd':
             serial.name = argv[optind];
             break;
-        case 'b':{
-        int baud = atoi(optarg);
-        serial.baud = parse_baudrate(baud);
-        } break;
+        case 'b':
+            serial.baud = parse_baudrate(atoi(optarg));
+            if (!serial.baud) {
+                fprintf(stderr,"Unknown baud rate!");
+                exit(EXIT_FAILURE);
+            }
+            break;
         case 'w':
             if (strlen(argv[optind]) < MAX_BUF_LENGTH) {
                 pbuf =argv[optind];
@@ -104,10 +107,10 @@ int main(int argc, char **argv)
     }
 
     serial_term_init(&serial, pbuf);
-    return 0; 
+    return 0;
 }
 
-static int serial_term_init(struct serial_opt *serial, const char* outbuf) 
+static int serial_term_init(struct serial_opt *serial, const char* outbuf)
 {
     struct serial_buf sb = { 0, {0} };
     pusbserial_ops = serial_initialize(serial);
@@ -153,7 +156,7 @@ static int serial_term_init(struct serial_opt *serial, const char* outbuf)
     return 0;
 }
 
-static int serial_write_buf(struct serial_opt *serial, const char * buf) 
+static int serial_write_buf(struct serial_opt *serial, const char * buf)
 {
     int res = pusbserial_ops->serial_port_write(serial->handler, buf);
     printf(">> %s\n", buf);
@@ -169,8 +172,8 @@ static void serial_output(void *p)
 {
      int messages_read=0;
      struct serial_opt *serial = (struct serial_opt *)p;
-     struct serial_buf sb = { 0, {0}};   
-     
+     struct serial_buf sb = { 0, {0}};
+
      while (sb.len != -1) {
         sb.len = serial_port_readline(serial->handler, serial->timeout, sb.buf, sizeof(sb.buf));
 
@@ -178,7 +181,7 @@ static void serial_output(void *p)
             printf("<< %s\n", sb.buf);
             fflush(stdout);
             if (++messages_read == serial->max_msgs) {
-                break;    
+                break;
             }
         }
      }
@@ -188,7 +191,7 @@ static void serial_output(void *p)
     exit(EXIT_SUCCESS);
 }
 
-static int serial_get_input(char *buf, int len) 
+static int serial_get_input(char *buf, int len)
 {
     return serial_port_readline(_fileno(stdin), -1, buf, len);
 }
@@ -215,7 +218,7 @@ static int serial_port_readline(int fd, int timeo, char *buf, int len)
         fprintf(stderr, "%s No data within %d seconds.\n", __func__, timeo);
         return -1;
     }
-        
+
     switch (pusbserial_ops->serial_port_read(fd, ptr, 1)) {
         case 1:
             if (*ptr == '\r')
