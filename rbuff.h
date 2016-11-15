@@ -1,7 +1,7 @@
 #ifndef _RBUFF_H
 #define _RBUFF_H
 
-#define BUFSIZE 256
+#define BUFSIZE 128
 
 typedef struct _rbuf {
     char buf[BUFSIZE];
@@ -9,11 +9,11 @@ typedef struct _rbuf {
     char *pOut;
     char *pEnd;
     int len;
-} t_rbuf;
+} rbuf_t;
 
-void buf_init(t_rbuf *b);
-int buf_put(t_rbuf *b, char c);
-int buf_get(t_rbuf *b, char *pc);
-int buf_is_full(t_rbuf *b);
-
+void rbuf_init(rbuf_t *b);
+int rbuf_put(rbuf_t *b, char c);
+int rbuf_get(rbuf_t *b, char *pc);
+int rbuf_is_full(rbuf_t *b);
+int rbuf_is_empty(rbuf_t *b);
 #endif

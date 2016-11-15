@@ -41,7 +41,7 @@ struct serial_buf {
    char buf[MAX_BUF_LENGTH];
 };
 
-t_rbuf rbuff;
+rbuf_t rbuff;
 
 static int serial_get_input(char *buf, int len);
 static void sigint_handler(int sig);
@@ -120,7 +120,7 @@ static int serial_term_init(struct serial_opt *serial, const char* outbuf)
     struct serial_buf sb = { 0, {0} };
     pusbserial_ops = serial_initialize(serial);
 
-    buf_init(&rbuff);
+    rbuf_init(&rbuff);
 
     if (pusbserial_ops->serial_port_open(serial) == -1) {
         printf("Unable to open %s : %s\n", serial->name , strerror(errno));
@@ -166,7 +166,7 @@ static int serial_term_init(struct serial_opt *serial, const char* outbuf)
 static int serial_write_buf(struct serial_opt *serial, const char * buf)
 {
     int res = pusbserial_ops->serial_port_write(serial->handler, buf);
-    printf(">> %s\n", buf);
+
     fflush(stdout);
 
     if (serial->endl) {
@@ -178,7 +178,7 @@ static int serial_write_buf(struct serial_opt *serial, const char * buf)
 
 static void serial_output(void *p)
 {
-     int messages_read=0;
+     //int messages_read=0;
      struct serial_opt *serial = (struct serial_opt *)p;
      struct serial_buf sb = { 0, {0}};
      char ch;
@@ -186,11 +186,13 @@ static void serial_output(void *p)
 
      while (serial_port_read_rbuff(serial) != -1) {
 
-        for(i =0; i < rbuff.len; i++) {
-            buf_get(&rbuff, &ch);
-            fprintf(stdout, "%c", ch);
+        if(rbuff.len > 0) {
+            for(i =0; i < rbuff.len; i++) {
+                rbuf_get(&rbuff, &ch);
+                fprintf(stdout, "%c", ch);
+            }
+            fflush(stdout);
         }
-        fflush(stdout);
      }
 
     fprintf(stderr, "serial_output end!\n");
@@ -200,7 +202,7 @@ static void serial_output(void *p)
 
 static int serial_get_input(char *buf, int len)
 {
-    return read(_fileno(stdin), buf, len);
+    return pusbserial_ops->serial_port_read(_fileno(stdin), buf, len);
 }
 
 void  sigint_handler(int sig)
@@ -214,24 +216,21 @@ static int serial_port_read_rbuff(struct serial_opt *serial)
     int retval = 0;
     char chr;
 
-    while(!buf_is_full(&rbuff)) {
+    while(!rbuf_is_full(&rbuff)) {
 
         retval = serial_wait_fd(serial->handler, serial->timeout);
+
         if (retval == -1 && errno != 0) {
             perror("select()");
-            return -1;
+            exit(-1);
         } else if (retval == 0) {
-            //fprintf(stderr, "%s No data within %d seconds.\n", __func__, timeo);
             return -2;
         }
 
         switch (pusbserial_ops->serial_port_read(serial->handler, &chr, 1)) {
         case 1:
-            buf_put(&rbuff, chr);
+            rbuf_put(&rbuff, chr);
             continue;
-        case 0:
-            //printf("read 0\n");
-            break;
         default:
             if (errno != EAGAIN) {
                 fprintf(stderr, "%s() failed: %s\n", __func__, strerror(errno));

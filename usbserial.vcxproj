@@ -62,11 +62,13 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="rbuff.h" />
     <ClInclude Include="usbserial.h" />
     <ClInclude Include="usbserial_win32.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="getopt.c" />
+    <ClCompile Include="rbuff.c" />
     <ClCompile Include="usbserial.c" />
     <ClCompile Include="usbserial_win32.c" />
   </ItemGroup>

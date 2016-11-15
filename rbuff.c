@@ -5,7 +5,7 @@
 
 #include "rbuff.h"
 
-void buf_init(t_rbuf *b)
+void rbuf_init(rbuf_t *b)
 {
     memset(&b->buf, 0, BUFSIZE);
     b->pIn = b->pOut = b->buf;
@@ -13,14 +13,19 @@ void buf_init(t_rbuf *b)
     b->len = 0;
 }
 
-int buf_is_full(t_rbuf *b)
+int rbuf_is_full(rbuf_t *b)
 {
     return b->len == BUFSIZE;
 }
 
-int buf_put(t_rbuf *b, char c)
+int rbuf_is_empty(rbuf_t *b) 
 {
-    if (b->pIn == b->pOut && buf_is_full(b)) {
+	return b->len == 0;
+}
+
+int rbuf_put(rbuf_t *b, char c)
+{
+    if (b->pIn == b->pOut && rbuf_is_full(b)) {
         //printf("put full\n");
         return 0;
     }
@@ -33,13 +38,15 @@ int buf_put(t_rbuf *b, char c)
     return 1;
 }
 
-int buf_get(t_rbuf *b, char *pc)
+int rbuf_get(rbuf_t *b, char *pc)
 {
-    if (b->len == 0/*b->pIn == b->pOut && !buf_is_full(b)*/) {
+    /*if (b->pIn == b->pOut && !buf_is_full(b)) {
        //printf("get full\n");
         return 0;
-    }
-
+    }*/
+	if (rbuf_is_empty(b)) {
+		return 0;
+	}
     *pc = *b->pOut++;
     b->len--;
     if (b->pOut >= b->pEnd) {
