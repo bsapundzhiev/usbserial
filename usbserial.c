@@ -150,6 +150,7 @@ static int serial_term_init(struct serial_opt *serial, const char* outbuf)
     SPAWN_THREAD(serial_output, (void*) serial);
 
     while(1) {
+        memset(&sb.buf, 0, sizeof(sb.buf));
         serial_get_input(sb.buf, sizeof(sb.buf));
 
         if (!strcmp(sb.buf, "bye") || !strcmp(sb.buf, "quit")) {
@@ -180,18 +181,16 @@ static void serial_output(void *p)
 {
      //int messages_read=0;
      struct serial_opt *serial = (struct serial_opt *)p;
-     struct serial_buf sb = { 0, {0}};
+     //struct serial_buf sb = { 0, {0}};
      char ch;
      int i;
 
      while (serial_port_read_rbuff(serial) != -1) {
 
-        if(rbuff.len > 0) {
-            for(i =0; i < rbuff.len; i++) {
-                rbuf_get(&rbuff, &ch);
-                fprintf(stdout, "%c", ch);
-            }
-            fflush(stdout);
+        for(i =0; i < rbuff.len; i++) {
+            rbuf_get(&rbuff, &ch);
+            //fprintf(stdout, "%c", ch);
+            write(_fileno(stdout), &ch, 1);
         }
      }
 

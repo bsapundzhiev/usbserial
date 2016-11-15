@@ -66,24 +66,22 @@ int linux_serial_port_open(struct serial_opt *serial)
         //options.c_cflag |= (CLOCAL | CREAD);
         //options.c_lflag |= ICANON;
         //http://stackoverflow.com/questions/6947413/how-to-open-read-and-write-from-serial-port-in-c
-        options.c_cflag = (options.c_cflag & ~CSIZE) | CS8;     // 8-bit chars
-        // disable IGNBRK for mismatched speed tests; otherwise receive break
-        // as \000 chars
-        options.c_iflag &= ~IGNBRK;         // disable break processing
-        options.c_lflag = 0;                // no signaling chars, no echo,
-                                        // no canonical processing
-        options.c_oflag = 0;                // no remapping, no delays
-        options.c_cc[VMIN]  = 0;            // read doesn't block
-        options.c_cc[VTIME] = 5;            // 0.5 seconds read timeout
-
-        options.c_iflag &= ~(IXON | IXOFF | IXANY); // shut off xon/xoff ctrl
-
-        options.c_cflag |= (CLOCAL | CREAD);// ignore modem controls,
-                                        // enable reading
-        options.c_cflag &= ~(PARENB | PARODD);      // shut off parity
+        options.c_cflag |= (CLOCAL | CREAD);    /* ignore modem controls */
+        options.c_cflag &= ~CSIZE;
+        options.c_cflag |= CS8;         /* 8-bit characters */
+        options.c_cflag &= ~PARENB;     /* no parity bit */
+        options.c_cflag &= ~CSTOPB;     /* only need 1 stop bit */
+        options.c_cflag &= ~CRTSCTS;    /* no hardware flowcontrol */
         options.c_cflag |= serial->baud;
-        options.c_cflag &= ~CSTOPB;
-        options.c_cflag &= ~CRTSCTS;
+
+        /* setup for non-canonical mode */
+        options.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL | IXON);
+        options.c_lflag &= ~(ECHO | ECHONL | ICANON | ISIG | IEXTEN);
+        options.c_oflag &= ~OPOST;
+        
+        /* fetch bytes as they become available */
+        //options.c_cc[VMIN] = 0;
+        //options.c_cc[VTIME] = 0;
 
         tcsetattr(serial->handler, TCSANOW, &options);
     }
