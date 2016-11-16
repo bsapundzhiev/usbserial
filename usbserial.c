@@ -183,13 +183,10 @@ static void serial_output(void *p)
      struct serial_opt *serial = (struct serial_opt *)p;
      //struct serial_buf sb = { 0, {0}};
      char ch;
-     int i;
-
      while (serial_port_read_rbuff(serial) != -1) {
 
-        for(i =0; i < rbuff.len; i++) {
+        while(rbuff.len > 0) {
             rbuf_get(&rbuff, &ch);
-            //fprintf(stdout, "%c", ch);
             write(_fileno(stdout), &ch, 1);
         }
      }

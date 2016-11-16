@@ -59,6 +59,8 @@ int linux_serial_port_open(struct serial_opt *serial)
     serial->handler = open(serial->name,  O_RDWR | O_NOCTTY | O_NONBLOCK );
 
     if (serial->handler != -1) {
+        fcntl(serial->handler, F_SETFL, FNDELAY);
+
         tcgetattr(serial->handler, &(serial)->options);
         tcgetattr(serial->handler, &options);
         cfsetispeed(&options, serial->baud);
@@ -72,16 +74,15 @@ int linux_serial_port_open(struct serial_opt *serial)
         options.c_cflag &= ~PARENB;     /* no parity bit */
         options.c_cflag &= ~CSTOPB;     /* only need 1 stop bit */
         options.c_cflag &= ~CRTSCTS;    /* no hardware flowcontrol */
-        options.c_cflag |= serial->baud;
 
         /* setup for non-canonical mode */
         options.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL | IXON);
         options.c_lflag &= ~(ECHO | ECHONL | ICANON | ISIG | IEXTEN);
         options.c_oflag &= ~OPOST;
-        
+
         /* fetch bytes as they become available */
-        //options.c_cc[VMIN] = 0;
-        //options.c_cc[VTIME] = 0;
+        options.c_cc[VMIN] = 0;
+        options.c_cc[VTIME] = 10;
 
         tcsetattr(serial->handler, TCSANOW, &options);
     }

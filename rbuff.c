@@ -18,7 +18,7 @@ int rbuf_is_full(rbuf_t *b)
     return b->len == BUFSIZE;
 }
 
-int rbuf_is_empty(rbuf_t *b) 
+int rbuf_is_empty(rbuf_t *b)
 {
 	return b->len == 0;
 }
@@ -40,13 +40,11 @@ int rbuf_put(rbuf_t *b, char c)
 
 int rbuf_get(rbuf_t *b, char *pc)
 {
-    /*if (b->pIn == b->pOut && !buf_is_full(b)) {
-       //printf("get full\n");
+    if (b->pIn == b->pOut && rbuf_is_empty(b)) {
+        //printf("get full\n");
         return 0;
-    }*/
-	if (rbuf_is_empty(b)) {
-		return 0;
-	}
+    }
+
     *pc = *b->pOut++;
     b->len--;
     if (b->pOut >= b->pEnd) {
