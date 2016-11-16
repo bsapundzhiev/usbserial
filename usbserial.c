@@ -41,8 +41,6 @@ struct serial_buf {
    char buf[MAX_BUF_LENGTH];
 };
 
-rbuf_t rbuff;
-
 static int serial_get_input(char *buf, int len);
 static void sigint_handler(int sig);
 static tcflag_t parse_baudrate(int requested);
@@ -52,8 +50,9 @@ static int serial_term_init(struct serial_opt *serial, const char* outbuf);
 static int serial_write_buf(struct serial_opt *serial, const char * buf);
 static int serial_port_read_rbuff(struct serial_opt *serial);
 
-static struct serial_opt *pserial;
-
+/*globals*/
+rbuf_t rbuff;
+int signal_exit = 0;
 usbserial_ops *pusbserial_ops;
 
 int main(int argc, char **argv)
@@ -72,8 +71,6 @@ int main(int argc, char **argv)
       .endl = 1,
     };
 #endif
-
-    pserial = &serial;
 
     while ((opt = getopt(argc, argv, "dwb:t:c:n")) != -1) {
         switch (opt) {
@@ -106,7 +103,7 @@ int main(int argc, char **argv)
             break;
         default: /* '?' */
             fprintf(stderr, "USB2Serial terminal %s, %s\n\n", VERSION, __DATE__);
-            fprintf(stderr, "Usage: %s [-d name] device [-b baud] rate [-t sec] timeout [-w string] write command [-c num] count messages [-n] don't add <CR>\n\n", argv[0]);
+            fprintf(stderr, "Usage: %s [-d name] device [-b baud] rate [-t sec] timeout [-w string] write command [-c num] count lines [-n] don't add <CR>\n\n", argv[0]);
             exit(EXIT_FAILURE);
         }
     }
@@ -179,19 +176,22 @@ static int serial_write_buf(struct serial_opt *serial, const char * buf)
 
 static void serial_output(void *p)
 {
-     //int messages_read=0;
-     struct serial_opt *serial = (struct serial_opt *)p;
-     //struct serial_buf sb = { 0, {0}};
-     char ch;
-     while (serial_port_read_rbuff(serial) != -1) {
+    struct serial_opt *serial = (struct serial_opt *)p;
+    char ch;
+    int msgs = 0;
+    while (!signal_exit && serial_port_read_rbuff(serial) != -1) {
 
         while(rbuff.len > 0) {
             rbuf_get(&rbuff, &ch);
             write(_fileno(stdout), &ch, 1);
-        }
-     }
 
-    fprintf(stderr, "serial_output end!\n");
+            if (ch == '\n' && (++msgs == serial->max_msgs)) {
+                break;
+            }
+        }
+    }
+
+    fprintf(stderr, "\nrecv: %d lines!\n", msgs);
     pusbserial_ops->serial_port_close(serial);
     exit(EXIT_SUCCESS);
 }
@@ -203,8 +203,7 @@ static int serial_get_input(char *buf, int len)
 
 void  sigint_handler(int sig)
 {
-    pusbserial_ops->serial_port_close(pserial);
-    exit (sig);
+    signal_exit = 1;
 }
 
 static int serial_port_read_rbuff(struct serial_opt *serial)

@@ -82,7 +82,7 @@ int linux_serial_port_open(struct serial_opt *serial)
 
         /* fetch bytes as they become available */
         options.c_cc[VMIN] = 0;
-        options.c_cc[VTIME] = 10;
+        options.c_cc[VTIME] = 5;
 
         tcsetattr(serial->handler, TCSANOW, &options);
     }
