@@ -1,4 +1,4 @@
-usbserial - Simple serial terminal emulator for linux and windows 
----------
+### usbserial
 
-Command line terminal used for communication with my dev boards.
+Simple serial terminal emulator for linux and windows 
+

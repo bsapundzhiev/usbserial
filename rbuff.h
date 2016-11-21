@@ -1,7 +1,7 @@
 #ifndef _RBUFF_H
 #define _RBUFF_H
 
-#define BUFSIZE 128
+#define BUFSIZE 10
 
 typedef struct _rbuf {
     char buf[BUFSIZE];
