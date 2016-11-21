@@ -23,6 +23,7 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <sys/ioctl.h>
 
 #ifndef _WIN32
 #include "usbserial_linux.h"
@@ -33,7 +34,7 @@
 #include "usbserial.h"
 #include "rbuff.h"
 
-#define DEFAULT_TIMEO   1
+#define DEFAULT_TIMEO   5
 #define MAX_BUF_LENGTH  256
 
 struct serial_buf {
@@ -206,23 +207,37 @@ void  sigint_handler(int sig)
     signal_exit = 1;
 }
 
+static int get_bytes_available(int fd) 
+{
+    int n = -1;
+    if (ioctl(fd, FIONREAD, &n) < 0) {
+        perror("ioctl failed");
+        return -1;
+    }
+    return n;
+}
+
 static int serial_port_read_rbuff(struct serial_opt *serial)
 {
     int retval = 0;
     char chr;
 
-    while(!rbuf_is_full(&rbuff)) {
+    retval = serial_wait_fd(serial->handler, serial->timeout);
 
-        retval = serial_wait_fd(serial->handler, serial->timeout);
+    if (retval == -1 && errno != 0) {
+        perror("select()");
+        exit(-1);
+    } else if (retval == 0) {
+        return -2;
+    }
 
-        if (retval == -1 && errno != 0) {
-            perror("select()");
-            exit(-1);
-        } else if (retval == 0) {
-            return -2;
-        }
+    while (get_bytes_available(serial->handler) > 0) {
 
-        switch (pusbserial_ops->serial_port_read(serial->handler, &chr, 1)) {
+		if (rbuf_is_full(&rbuff)) { break; }
+
+		retval = pusbserial_ops->serial_port_read(serial->handler, &chr, 1);
+
+        switch (retval) {
         case 1:
             rbuf_put(&rbuff, chr);
             continue;
@@ -232,7 +247,7 @@ static int serial_port_read_rbuff(struct serial_opt *serial)
                 return -1;
             }
         }
-    }
+	}
 
     return retval;
 }
