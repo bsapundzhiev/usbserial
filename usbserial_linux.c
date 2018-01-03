@@ -110,7 +110,7 @@ int linux_serial_port_write(int fd, const char *write_buffer)
 
 static int linux_serial_port_bytes_available(struct serial_opt *serial)
 {
-	int n = -1;
+    int n = -1;
     if (ioctl(serial->handler, FIONREAD, &n) < 0) {
         perror("ioctl failed");
         return -1;

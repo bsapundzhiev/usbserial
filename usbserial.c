@@ -51,9 +51,9 @@ static int serial_write_buf(struct serial_opt *serial, const char * buf);
 static int serial_port_read_rbuff(struct serial_opt *serial);
 
 /*globals*/
-rbuf_t rbuff;
-int signal_exit = 0;
-usbserial_ops *pusbserial_ops;
+static rbuf_t rbuff;
+static int signal_exit = 0;
+static usbserial_ops *pusbserial_ops;
 
 int main(int argc, char **argv)
 {
@@ -145,16 +145,16 @@ static int serial_term_init(struct serial_opt *serial, const char* outbuf)
     }
 
     SPAWN_THREAD(serial_output, (void*) serial);
-
+    
     while(1) {
         memset(&sb.buf, 0, sizeof(sb.buf));
         serial_get_input(sb.buf, sizeof(sb.buf));
-
-        if (!strcmp(sb.buf, "bye") || !strcmp(sb.buf, "quit")) {
+    
+        if (!strncmp("bye", sb.buf, 3) || !strncmp(sb.buf, "quit", 4)) {
             break;
-        } else {
-            serial_write_buf(serial, sb.buf);
         }
+        
+    serial_write_buf(serial, sb.buf);        
     }
     fprintf(stderr, "Bye!\n");
     pusbserial_ops->serial_port_close(serial);
@@ -183,7 +183,8 @@ static void serial_output(void *p)
 
         while(rbuf_get(&rbuff, &ch)) {
             
-			putc(ch, stdout);
+            putc(ch, stdout);
+
             if (ch == '\n' && (++msgs == serial->max_msgs)) {
                 break;
             }
@@ -219,24 +220,24 @@ static int serial_port_read_rbuff(struct serial_opt *serial)
         return -2;
     }
 
-	int bytes = pusbserial_ops->serial_port_bytes_available(serial);
-	while (bytes--) {
+    int bytes = pusbserial_ops->serial_port_bytes_available(serial);
+    while (bytes--) {
 
-		if (rbuf_is_full(&rbuff)) { break; }
+        if (rbuf_is_full(&rbuff)) { break; }
 
-		retval = pusbserial_ops->serial_port_read(serial->handler, &chr, 1);
-		
+        retval = pusbserial_ops->serial_port_read(serial->handler, &chr, 1);
+        
         switch (retval) {
-		case 1:
+        case 1:
             rbuf_put(&rbuff, chr);
-			break;
+            break;
         default:
             if (errno != EAGAIN) {
                 fprintf(stderr, "%s() failed: %s\n", __func__, strerror(errno));
                 return -1;
             }
         }
-	}
+    }
 
     return retval;
 }
