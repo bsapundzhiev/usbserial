@@ -23,7 +23,6 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <errno.h>
-#include <sys/ioctl.h>
 
 #ifndef _WIN32
 #include "usbserial_linux.h"
@@ -182,10 +181,9 @@ static void serial_output(void *p)
     int msgs = 0;
     while (!signal_exit && serial_port_read_rbuff(serial) != -1) {
 
-        while(rbuff.len > 0) {
-            rbuf_get(&rbuff, &ch);
-            write(_fileno(stdout), &ch, 1);
-
+        while(rbuf_get(&rbuff, &ch)) {
+            
+			putc(ch, stdout);
             if (ch == '\n' && (++msgs == serial->max_msgs)) {
                 break;
             }
@@ -207,16 +205,6 @@ void  sigint_handler(int sig)
     signal_exit = 1;
 }
 
-static int get_bytes_available(int fd) 
-{
-    int n = -1;
-    if (ioctl(fd, FIONREAD, &n) < 0) {
-        perror("ioctl failed");
-        return -1;
-    }
-    return n;
-}
-
 static int serial_port_read_rbuff(struct serial_opt *serial)
 {
     int retval = 0;
@@ -231,16 +219,17 @@ static int serial_port_read_rbuff(struct serial_opt *serial)
         return -2;
     }
 
-    while (get_bytes_available(serial->handler) > 0) {
+	int bytes = pusbserial_ops->serial_port_bytes_available(serial);
+	while (bytes--) {
 
 		if (rbuf_is_full(&rbuff)) { break; }
 
 		retval = pusbserial_ops->serial_port_read(serial->handler, &chr, 1);
-
+		
         switch (retval) {
-        case 1:
+		case 1:
             rbuf_put(&rbuff, chr);
-            continue;
+			break;
         default:
             if (errno != EAGAIN) {
                 fprintf(stderr, "%s() failed: %s\n", __func__, strerror(errno));
