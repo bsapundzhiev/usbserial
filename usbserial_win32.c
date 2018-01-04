@@ -26,6 +26,7 @@ static void win32_serial_port_close(struct serial_opt *serial);
 static int win32_serial_port_open(struct serial_opt *serial);
 static int win32_serial_port_read(int fd, char *read_buffer, size_t max_chars_to_read);
 static int win32_serial_port_write(int fd, const char *write_buffer);
+static int win32_serial_port_bytes_available(struct serial_opt *serial);
 
 usbserial_ops win32_opts = {
     
@@ -33,6 +34,7 @@ usbserial_ops win32_opts = {
      win32_serial_port_open,
      win32_serial_port_read,
      win32_serial_port_write,
+     win32_serial_port_bytes_available,
 };
 
 usbserial_ops * serial_initialize(struct serial_opt * options)
@@ -101,4 +103,9 @@ static int win32_serial_port_write(int fd, const char *write_buffer)
     size_t bytes_written = _write(fd, write_buffer, len);
 
     return (bytes_written == len);
+}
+
+static int win32_serial_port_bytes_available(struct serial_opt *serial)
+{
+    return 1;
 }

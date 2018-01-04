@@ -24,6 +24,7 @@
 #include <termios.h>
 #include <errno.h>
 #include <unistd.h>
+#include <sys/ioctl.h>
 
 #include "usbserial.h"
 
@@ -31,6 +32,7 @@ static void linux_serial_port_close(struct serial_opt *serial);
 static int linux_serial_port_open(struct serial_opt *serial);
 static int linux_serial_port_read(int fd, char *read_buffer, size_t max_chars_to_read);
 static int linux_serial_port_write(int fd, const char *write_buffer);
+static int linux_serial_port_bytes_available(struct serial_opt *serial);
 
 usbserial_ops linux_opts = {
 
@@ -38,6 +40,7 @@ usbserial_ops linux_opts = {
     .serial_port_open = linux_serial_port_open,
     .serial_port_read = linux_serial_port_read,
     .serial_port_write = linux_serial_port_write,
+    .serial_port_bytes_available = linux_serial_port_bytes_available,
 };
 
 usbserial_ops * serial_initialize(struct serial_opt * options)
@@ -103,4 +106,14 @@ int linux_serial_port_write(int fd, const char *write_buffer)
     size_t bytes_written = write(fd, write_buffer, len);
     tcdrain(fd);
     return (bytes_written == len);
+}
+
+static int linux_serial_port_bytes_available(struct serial_opt *serial)
+{
+    int n = -1;
+    if (ioctl(serial->handler, FIONREAD, &n) < 0) {
+        perror("ioctl failed");
+        return -1;
+    }
+    return n;
 }

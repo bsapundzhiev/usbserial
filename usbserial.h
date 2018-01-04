@@ -3,7 +3,7 @@
 
 #include <sys/types.h>
 
-#define  VERSION "0.1.0-beta"
+#define  VERSION "0.1.1"
 
 struct serial_opt {
     char *name;
@@ -23,7 +23,7 @@ typedef struct s_usbserial_ops {
     int (*serial_port_open)(struct serial_opt *serial);
     int (*serial_port_read)(int fd, char *read_buffer, size_t max_chars_to_read);
     int (*serial_port_write)(int fd, const char *write_buffer);
-
+    int (*serial_port_bytes_available)(struct serial_opt *serial);
 } usbserial_ops;
 
 usbserial_ops * serial_initialize(struct serial_opt * options);
